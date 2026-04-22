@@ -1,9 +1,0 @@
-fastapi
-univorn
-lanchain
-lanchain_core
-lanchain-community
-langchain-postgres
-langchain-openai
-python-multipart
-pypdf
