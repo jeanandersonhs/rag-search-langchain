@@ -4,45 +4,55 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 
-from application.use_cases.query import QueryUseCase
-from presentation.api.routes.query import create_query_router
-
-query_use_case: QueryUseCase | None = None
+from presentation.api.routes.routes import create_api_router
 
 
 def create_app() -> FastAPI:
-    app = FastAPI(
-        title="RAG Search API",
-        description="API Retrieval-Augmented Generation",
-        version="1.0.0",
-    )
+    """Create and configure the FastAPI application mounted at /api."""
+
     
+
+    # API sub-application — all routes and docs live here
+    api = FastAPI(
+        title="RAG Search API",
+        description="API for Retrieval-Augmented Generation",
+        version="1.0.0",
+        root_path="/api",
+    )
+
     # Configure CORS middleware
     cors_origins = os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",")
-    
-    app.add_middleware(
+
+    api.add_middleware(
         CORSMiddleware,
         allow_origins=cors_origins,
         allow_credentials=True,
         allow_methods=["*"],
-        allow_headers=["*"],
+        allow_headers=["*"], 
     )
+
+    # Register all API routes
+    try:
+        api_router = create_api_router()
+        api.include_router(api_router)
+        print("All routes registered successfully.")
+    except Exception as e:
+        print(f"Warning: Could not register routes: {str(e)}")
+        print("API will be available but some endpoints may not work.")
+
+    # Mount at /api
     
 
-    if query_use_case is not None:
-        query_router = create_query_router(query_use_case)
-        app.include_router(query_router)
-    
-    return app
+    return  api
 
 
-# Create the app instancewww
+# Create the app instance
 app = create_app()
 
 if __name__ == "__main__":
     uvicorn.run(
         "main:app",
-        host="0.0.0.0",
+        host="localhost",
         port=8000,
         reload=os.getenv("ENVIRONMENT", "production") == "development"
     )
