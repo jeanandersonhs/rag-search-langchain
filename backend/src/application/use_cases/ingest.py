@@ -1,7 +1,10 @@
 import os
 
-from langchain_postgres import PGVector
+from langchain_community.vectorstores import PGVector
+from langchain_community.document_loaders import PyPDFLoader, TextLoader
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 from infraestructure.clients.google_ai_client import GoogleAIClient
+
 class IngestUseCase:
     def __init__(self):
         """Ingest documents into the vector database.
@@ -10,13 +13,14 @@ class IngestUseCase:
         
         Args: None """
 
-        DATA_PATH = os.getenv("DATA_PATH", "data/documents")
+        DATA_PATH = os.getenv("DATA_PATH", "..      /data/documents")
+
 
     def load_documents(self):
-        documents =[]
+        documents = []
 
-        for file in os.listdir(DATA_PATH):
-            path = os.path.join(DATA_PATH, file) # Process the file and extract text
+        for file in os.listdir(self.DATA_PATH):
+            path = os.path.join(self.DATA_PATH, file) # Process the file and extract text
 
             if file.endswith(".pdf"):
                 # Use PyPDF2 or similar to extract text from PDF
@@ -25,9 +29,15 @@ class IngestUseCase:
                 # Use a simple text loader for other formats
                 loader = TextLoader(path)
 
+            documents.extend(loader.load())
+        return documents
+
+
 
     def split_documents(self, documents):
-        text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=100)
+        text_splitter = RecursiveCharacterTextSplitter(
+            chunk_size=1000, 
+            chunk_overlap=100)
         return text_splitter.split_documents(documents)
     
 
