@@ -1,13 +1,13 @@
 import os
 from typing import List
-from langchain_google_genai import GoogleGenerativeAIEmbeddings, ChatGoogleGenerativeAI
-from langchain_postgres import PGVector
-from langchain.chains import RetrievalQA
-from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_postgres import PGVector, PGVectorStore
 
-from ..dtos.query_dto import QuestionRequest, AnswerResponse, DocumentSource
-from ...infraestructure.clients.google_ai_client import GoogleAIClient
+from application.dtos.query_dto import AnswerResponse, DocumentSource, QuestionRequest
+from infraestructure.clients.google_ai_client import GoogleAIClient
+from infraestructure.database.pg_vector import PgVector_CONFIG
 
+from dotenv import load_dotenv
+load = load_dotenv()  # Load environment variables from .env file
 
 class QueryUseCase:
     """Use case for handling question-answering with RAG pipeline."""
@@ -15,40 +15,35 @@ class QueryUseCase:
     def __init__(self): 
         """
         Initialize RAG components with LangChain and PostgreSQL vector store.
-         - Embeddings: GoogleGenerativeAIEmbeddings
-         - LLM: ChatGoogleGenerativeAI (Gemini Pro)
-         - Vector Store: PGVector with PostgreSQL
-         
-         return: None"""
-        
+        Uses shared GoogleAIClient accessors to avoid repeated client creation.
+        - Embeddings: GoogleGenerativeAIEmbeddings (from Google AI)
+        - LLM: ChatGoogleGenerativeAI (Gemini Pro)
+        - Vector Store: PGVector with PostgreSQL
+        """
+        #nao consegue pegar esse embeding
         self.embeddings = GoogleAIClient.get_embeddings()
-        
         self.llm = GoogleAIClient.get_llm()
         
         # PostgreSQL connection string
         connection_string = os.getenv(
-            "DATABASE_URL",
+            "DATABASE_URL_POSTGRES",
             "postgresql+psycopg://postgres:postgres@db:5432/rag_db"
         )
         
-        self.vector_store = PGVector(
-            collection_name="documents",
-            connection_string=connection_string,
-            embedding_function=self.embeddings,
-        )
+        self.vector_store = PgVector_CONFIG.get_vector_store()
         
         self.retriever = self.vector_store.as_retriever(
             search_type="similarity",
             search_kwargs={"k": 3}  # Retrieve top 3 documents
         )
-        
-        self.qa_chain = RetrievalQA.from_chain_type(
-            llm=self.llm,
-            chain_type="stuff",
-            retriever=self.retriever,
-            return_source_documents=True,
-            verbose=False
-        )
+
+        # self.qa_chain = .from_chain_type(
+        #     llm=self.llm,
+        #     chain_type="stuff",
+        #     retriever=self.retriever,
+        #     return_source_documents=True,
+        #     verbose=False
+        # )
     
     async def execute(self, request: QuestionRequest) -> AnswerResponse:
         """
@@ -81,8 +76,10 @@ class QueryUseCase:
                 sources=sources
             )
         
+        except ValueError:
+            raise
         except Exception as e:
-            raise Exception(f"Error executing RAG pipeline: {str(e)}")
+            raise RuntimeError(f"Error executing RAG pipeline: {str(e)}") from e
     
     def _extract_sources(self, source_documents: List) -> List[DocumentSource]:
         """

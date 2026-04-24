@@ -1,8 +1,8 @@
 from fastapi import APIRouter, HTTPException, status
 from typing import Callable
 
-from ...application.dtos.query_dto import QuestionRequest, AnswerResponse
-from ...application.use_cases.query import QueryUseCase
+from application.dtos.query_dto import QuestionRequest, AnswerResponse
+from application.use_cases.query import QueryUseCase
 
 
 def create_query_router(query_use_case: QueryUseCase) -> APIRouter:
@@ -59,11 +59,13 @@ def create_query_router(query_use_case: QueryUseCase) -> APIRouter:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=str(ve)
-            )
+            ) from ve
+        
         except Exception as e:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Error processing query: {str(e)}"
-            )
+            ) from e
+        
     
     return router
